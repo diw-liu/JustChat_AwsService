@@ -1,0 +1,58 @@
+type User {
+  UserId: String!
+  UserName: String!
+  Email: String!
+}
+
+type Room {
+  roomId: ID!
+  messageId: ID!
+  sender: String!
+  status: Status!
+}
+
+type Message {
+  messageId: ID!
+  messageContent: String!
+}
+
+type Friend {
+  UserId: String!
+  FriendId: String!
+  Status: Status!
+  RoomId: String!
+  CreatedTime: AWSDateTime
+  UpdatedTime: AWSDateTime
+}
+
+enum Status {
+  REQUESTED
+  PENDING
+  FRIENDS
+}
+
+type Query {
+  getFriend(friendId: String!): String!
+}
+
+type Mutation {
+  addFriend(friendId: String!): String!
+  publishFriend(input: FriendInput!): FriendRequest
+}
+
+type Subscription {
+  onPublishFriend(UserId: String!): FriendRequest @aws_subscribe(mutations: ["publishFriend"])
+}
+
+input FriendInput {
+	UserId: String!
+	FriendId: String!
+	Status: Status!
+}
+
+type FriendRequest {
+	UserId: String
+	FriendId: String
+	Status: Status
+	FriendInfo: User
+}

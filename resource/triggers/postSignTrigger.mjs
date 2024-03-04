@@ -9,7 +9,7 @@ export const handler = async (event) => {
       "Email": {
         "S": attrib['email']
       }, 
-      "Id": {
+      "UserId": {
         "S": attrib['sub']
       },
       "UserName": {

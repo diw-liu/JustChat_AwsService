@@ -22,7 +22,7 @@ async function processMessageAsync(message) {
           "S": info["id"]
         },
         "FriendId": {
-          "S": info["arguments"]["friendId"]
+          "S": info["parameter"]["friendId"]
         },
         "Status": {
           "S": "REQUESTED"

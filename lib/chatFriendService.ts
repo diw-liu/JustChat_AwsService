@@ -77,15 +77,9 @@ export class FriendServiceStack extends Construct {
 
 
     // Event mapping when add/remove/update friend
-    const appsyncCaller = new lambda.Function(this, 'AppsyncCallerLambda', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      code: lambda.Code.fromAsset("resource/friendsLambda"),
-      handler: "appsyncRequest.handler",
-      environment: {
-        APPSYNC_URL: props.api.graphqlUrl
-      }
-    })
-    props.api.grant(appsyncCaller, appsync.IamResource.ofType('Mutation', 'publishFriend'), 'appsync:GraphQL');
+    const appsyncLayer = new lambda.LayerVersion(this, 'AppSyncLayer', {
+      code: lambda.Code.fromAsset('resource/utils/layer-package.zip'),
+    });
 
     const friendsEvent = new lambda.Function(this, 'FriendsEventLambda', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -93,11 +87,14 @@ export class FriendServiceStack extends Construct {
       handler: "friendsEvent.handler",
       environment: {
         FRIEND_TABLE_NAME: props.friendsTable.tableName,
-        USER_TABLE_NAME: props.usersTable.tableName          
-      }
+        USER_TABLE_NAME: props.usersTable.tableName,
+        APPSYNC_URL: props.api.graphqlUrl        
+      },
+      layers: [appsyncLayer]
     })
     props.friendsTable.grantReadWriteData(friendsEvent);
     props.usersTable.grantReadWriteData(friendsEvent);
+    props.api.grant(friendsEvent, appsync.IamResource.ofType('Mutation', 'publishFriend'), 'appsync:GraphQL');
 
     const streamEventSourceProps: eventsources.StreamEventSourceProps = {
       startingPosition: lambda.StartingPosition.LATEST,

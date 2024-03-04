@@ -31,6 +31,5 @@ export class AppsyncStack extends Construct {
       logConfig,
       xrayEnabled: true,
     })
-
   }
 }

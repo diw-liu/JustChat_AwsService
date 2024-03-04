@@ -3,6 +3,7 @@ const client = new DynamoDBClient();
 
 export const handler = async (event) => {
   const email = event['request']['userAttributes']['email'];
+  console.log(email)
   const input = {
     "ExpressionAttributeValues": {
       ":Email": {

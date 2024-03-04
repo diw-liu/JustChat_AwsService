@@ -1,4 +1,4 @@
-type User {
+type User @aws_iam{
   UserId: String!
   UserName: String!
   Email: String!
@@ -37,7 +37,7 @@ type Query {
 
 type Mutation {
   addFriend(friendId: String!): String!
-  publishFriend(input: FriendInput!): FriendRequest
+  publishFriend(input: FriendInput!): FriendRequest @aws_iam
 }
 
 type Subscription {
@@ -50,7 +50,7 @@ input FriendInput {
 	Status: Status!
 }
 
-type FriendRequest {
+type FriendRequest @aws_iam{
 	UserId: String
 	FriendId: String
 	Status: Status

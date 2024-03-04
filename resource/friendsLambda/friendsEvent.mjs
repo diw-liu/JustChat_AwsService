@@ -1,7 +1,7 @@
 // don't care about the selection list, try just return
 // Must change since mutation and name not included... cause issue.
 import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb"; 
-// import { appsyncRequest } from "./appsyncRequest.mjs";
+import * as appsyncRequest from "./appsyncRequest.mjs";
 
 const client = new DynamoDBClient();
 
@@ -36,17 +36,20 @@ async function processMessageAsync(message) {
   switch (eventName) {
     case 'INSERT':
       if(item['Status']['S'] == 'REQUESTED') {
-        // adding pending invert friendship row to friendship table
         const res1 = await putFriendsItem(item);
-        if(res1['$metadata']['httpStatusCode'] == 200){
-          const res2 = await getUserItem(item['UserId']['S'])
-          if(res2['$metadata']['httpStatusCode'] == 200){
-            console.log('adsasa'+res2);
-            // const res3 = await appsyncRequest({
-              
-            // })
+        if(res1['$metadata']['httpStatusCode'] != 200) throw new Error('Fail PutFriendItem')
+          
+        //const res2 = await getUserItem(item['UserId']['S'])
+        //if(res2['$metadata']['httpStatusCode'] != 200) throw new Error('Fail getUserItem')
+        const variables = {
+          input: {
+            UserId: item['FriendId']['S'],
+            FriendId: item['UserId']['S'],
+            Status: "PENDING",
           }
-        }
+        };
+        return await appsyncRequest.handler(variables)
+        //console.log('adsasa'+JSON.stringify(res2));
       }
       break;
       

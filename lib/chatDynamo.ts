@@ -29,6 +29,10 @@ export class DynamoStack extends Construct {
         name: "UserId",
         type: dynamodb.AttributeType.STRING
       },
+      sortKey: {
+        name: "FriendId",
+        type: dynamodb.AttributeType.STRING
+      },
       stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
     })
 

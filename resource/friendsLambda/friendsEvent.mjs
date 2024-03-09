@@ -1,26 +1,10 @@
-// don't care about the selection list, try just return
-// Must change since mutation and name not included... cause issue.
-import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb"; 
+import { DynamoDBClient, PutItemCommand, DeleteItemCommand, UpdateItemCommand} from "@aws-sdk/client-dynamodb"; 
 import * as appsyncRequest from "./appsyncRequest.mjs";
 
 const client = new DynamoDBClient();
 
-const mutation =  `
-  mutation publishFriend(input: FriendInput!) {
-    publishFriend(input: $input) {
-      UserId
-    	FriendId
-    	Status
-    	FriendInfo {
-        Email
-        UserId
-        UserName
-      }
-    }
-  }
-`;
-
 export const handler = async (event) => {
+  console.log(event)
   for (const message of event.Records) {
     await processMessageAsync(message);
   }
@@ -36,11 +20,8 @@ async function processMessageAsync(message) {
   switch (eventName) {
     case 'INSERT':
       if(item['Status']['S'] == 'REQUESTED') {
-        const res1 = await putFriendsItem(item);
-        if(res1['$metadata']['httpStatusCode'] != 200) throw new Error('Fail PutFriendItem')
-          
-        //const res2 = await getUserItem(item['UserId']['S'])
-        //if(res2['$metadata']['httpStatusCode'] != 200) throw new Error('Fail getUserItem')
+        const res = await putFriendsItem(item);
+        if(res['$metadata']['httpStatusCode'] != 200) throw new Error('Fail PutFriendItem')
         const variables = {
           input: {
             UserId: item['FriendId']['S'],
@@ -49,19 +30,55 @@ async function processMessageAsync(message) {
           }
         };
         return await appsyncRequest.handler(variables)
-        //console.log('adsasa'+JSON.stringify(res2));
       }
       break;
       
     case 'REMOVE':
-      break;
+      const res = await deleteFriendItem(item)
+      if(res['$metadata']['httpStatusCode'] != 200) throw new Error('Fail DeleteFriendItem')
+      const variables = {
+        input: {
+          UserId: item['FriendId']['S'],
+          FriendId: item['UserId']['S']
+        }
+      };
+      console.log(variables);
+      return await appsyncRequest.handler(variables);
       
     case 'MODIFY':
+      if(item['Status']['S'] == 'FRIENDS' && message['dynamodb']['OldImage']['Status']['S'] == 'PENDING') {
+        const res = await updateFriendItem(item)
+        if(res['$metadata']['httpStatusCode'] != 200) throw new Error('Fail UpdateFriendItem')
+        const variables = {
+          input: {
+            UserId: item['FriendId']['S'],
+            FriendId: item['UserId']['S'],
+            Status: "FRIENDS",
+          }
+        };
+        console.log(variables);
+        return await appsyncRequest.handler(variables);
+      }
       break;
-      
     default:
       throw new Error("Invalid input. Odd eventName")
   }
+}
+
+async function deleteFriendItem(item) {
+  const input = {
+    "Key": {
+      "UserId": {
+        "S": item['FriendId']['S'],
+      },
+      "FriendId": {
+        "S": item['UserId']['S'],
+      },
+    },
+    "TableName": process.env.FRIEND_TABLE_NAME
+  };
+  const command = new DeleteItemCommand(input);
+  return await client.send(command);
 }
 
 async function putFriendsItem(item) {
@@ -91,15 +108,41 @@ async function putFriendsItem(item) {
   return await client.send(command);
 }
 
-async function getUserItem(Id) {
+async function updateFriendItem(item) {
+  const date = new Date();
   const input = {
-    "Key": {
-      "UserId": {
-        "S":  Id,
+    "ExpressionAttributeNames": {
+      "#Status": "Status",
+      "#RoomId": "RoomId",
+      "#UpdatedTime": "UpdatedTime"
+    },
+    "ExpressionAttributeValues": {
+      ":Status": {
+        "S": "FRIENDS"
+      },
+      ":RoomId": {
+        "S": item['RoomId']['S']
+      },
+      ":UpdatedTime": {
+        "S": date
+      },
+      ":requested": {
+        "S": "REQUESTED"
       }
     },
-    "TableName": process.env.USER_TABLE_NAME
+    "Key": {
+      "UserId": {
+        "S": item['FriendId']['S'],
+      },
+      "FriendId": {
+        "S": item['UserId']['S'],
+      },
+    },
+    "ReturnValues": "ALL_NEW",
+    "TableName": process.env.FRIEND_TABLE_NAME,
+    "UpdateExpression": "SET #Status = :Status, #RoomId = :RoomId, #UpdatedTime = :UpdatedTime",
+    "ConditionExpression": "#Status = :requested"
   };
-  const command = new GetItemCommand(input);
+  const command = new UpdateItemCommand(input);
   return await client.send(command);
 }

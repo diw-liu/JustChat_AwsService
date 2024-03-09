@@ -8,78 +8,83 @@ export class FriendServiceStack extends Construct {
   constructor(scope: Construct, id: string, props?: any) {
     super(scope, id);
 
-    //appsync >> sqs >> firend lambda function
-    const friendDLQ = new sqs.Queue(this, 'FriendsDLQ')
-    const friendSQS = new sqs.Queue(this, 'FriendsQueue', {
-      deadLetterQueue: {
-        maxReceiveCount: 1,
-        queue: friendDLQ
-      }
-    })
-    
-    const addFriend = new lambda.Function(this, 'AddFriendLambda', {
-      runtime: lambda.Runtime.NODEJS_18_X,
-      code: lambda.Code.fromAsset("resource/friendsLambda"),
-      handler: "addFriend.handler",
-      environment: {
-        FRIEND_TABLE_NAME: props.friendsTable.tableName
-      }
-    })
-    addFriend.addEventSource(new eventsources.SqsEventSource(friendSQS));
-    props.friendsTable.grantReadWriteData(addFriend);
+    // const friendDLQ = new sqs.Queue(this, 'FriendsDLQ')
+    // const friendSQS = new sqs.Queue(this, 'FriendsQueue', {
+    //   deadLetterQueue: {
+    //     maxReceiveCount: 1,
+    //     queue: friendDLQ
+    //   }
+    // })
 
-    const datasource = props.api.addHttpDataSource(
-			'sqs',
-			`https://sqs.${props.region}.amazonaws.com`,
-			{
-				authorizationConfig: {
-					signingRegion: props.region,
-					signingServiceName: 'sqs',
-				},
-			}
-		)
-		datasource.node.addDependency(friendSQS)
-		friendSQS.grantSendMessages(datasource.grantPrincipal)
+    //requestFriend.addEventSource(new eventsources.SqsEventSource(friendSQS));
 
-    const myJsFunction = new appsync.AppsyncFunction(this, 'function', {
-			name: 'my_js_function',
-      api: props.api,
-			dataSource: datasource,
-			code: appsync.Code.fromAsset("resource/resolvers/sendFriendSQS.js"),
-			runtime: appsync.FunctionRuntime.JS_1_0_0,
-		})
+    // const datasource = props.api.addHttpDataSource(
+		// 	'sqs',
+		// 	`https://sqs.${props.region}.amazonaws.com`,
+		// 	{
+		// 		authorizationConfig: {
+		// 			signingRegion: props.region,
+		// 			signingServiceName: 'sqs',
+		// 		},
+		// 	}
+		// )
+		// datasource.node.addDependency(friendSQS)
+		// friendSQS.grantSendMessages(datasource.grantPrincipal)
 
-		const pipelineVars = JSON.stringify({
-			accountId: props.account,
-			queueUrl: friendSQS.queueUrl,
-			queueName: friendSQS.queueName,
-		})
+    // const sendSQSFunction = new appsync.AppsyncFunction(this, 'function', {
+		// 	name: 'sendSQSFunction',
+    //   api: props.api,
+		// 	dataSource: datasource,
+		// 	code: appsync.Code.fromAsset("resource/resolvers/sendFriendSQS.js"),
+		// 	runtime: appsync.FunctionRuntime.JS_1_0_0,
+		// })
 
-		new appsync.Resolver(this, 'PipelineResolver', {
-			api: props.api,
-			typeName: 'Mutation',
-			fieldName: 'addFriend',
-			code: appsync.Code.fromInline(`
-            // The before step
-            export function request(...args) {
-              console.log(args);
-              return ${pipelineVars}
-            }
+		// const pipelineVars = JSON.stringify({
+		// 	accountId: props.account,
+		// 	queueUrl: friendSQS.queueUrl,
+		// 	queueName: friendSQS.queueName,
+		// })
+
+		// new appsync.Resolver(this, 'PipelineResolver', {
+		// 	api: props.api,
+		// 	typeName: 'Query',
+		// 	fieldName: 'getFriend',
+		// 	code: appsync.Code.fromInline(`
+    //         // The before step
+    //         export function request(...args) {
+    //           console.log(args);
+    //           return ctx
+    //         }
         
-            // The after step
-            export function response(ctx) {
-              return ctx.prev.result
-            }
-          `),
-			runtime: appsync.FunctionRuntime.JS_1_0_0,
-			pipelineConfig: [myJsFunction],
-		})
+    //         // The after step
+    //         export function response(ctx) {
+    //           return ctx.prev.result
+    //         }
+    //       `),
+		// 	runtime: appsync.FunctionRuntime.JS_1_0_0
+		// })
 
-
-    // Event mapping when add/remove/update friend
     const appsyncLayer = new lambda.LayerVersion(this, 'AppSyncLayer', {
       code: lambda.Code.fromAsset('resource/utils/layer-package.zip'),
     });
+    
+    const requestFriend = new lambda.Function(this, 'RequestFriendLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      code: lambda.Code.fromAsset("resource/friendsLambda"),
+      handler: "requestFriend.handler",
+      environment: {
+        FRIEND_TABLE_NAME: props.friendsTable.tableName
+      },
+      layers: [appsyncLayer]
+    })
+    props.friendsTable.grantReadWriteData(requestFriend);
+
+    const lambdaDS = props.api.addLambdaDataSource('friendLambdaDataSource', requestFriend)
+
+    lambdaDS.createResolver('resolver-mutation-requestFriend', {
+      typeName: 'Mutation',
+      fieldName: 'requestFriend',
+    })
 
     const friendsEvent = new lambda.Function(this, 'FriendsEventLambda', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -93,7 +98,6 @@ export class FriendServiceStack extends Construct {
       layers: [appsyncLayer]
     })
     props.friendsTable.grantReadWriteData(friendsEvent);
-    props.usersTable.grantReadWriteData(friendsEvent);
     props.api.grant(friendsEvent, appsync.IamResource.ofType('Mutation', 'publishFriend'), 'appsync:GraphQL');
 
     const streamEventSourceProps: eventsources.StreamEventSourceProps = {
@@ -105,7 +109,6 @@ export class FriendServiceStack extends Construct {
 
     friendsEvent.addEventSource(
       new eventsources.DynamoEventSource(props.friendsTable, {
-        // define filters here
         filters: [
           lambda.FilterCriteria.filter({
             eventName: lambda.FilterRule.isEqual('INSERT'),
@@ -145,16 +148,16 @@ export class FriendServiceStack extends Construct {
       api: props.api,
       typeName: 'Mutation',
       fieldName: 'publishFriend',
-          code: appsync.Code.fromInline(`
-              export function request(ctx) {
-                console.log(ctx);
-                return {};
-              }
-    
-              export function response(ctx) {
-                return ctx.prev.result;
-              }
-          `),
+      code: appsync.Code.fromInline(`
+          export function request(ctx) {
+            console.log(ctx);
+            return {};
+          }
+
+          export function response(ctx) {
+            return ctx.prev.result;
+          }
+      `),
       runtime: appsync.FunctionRuntime.JS_1_0_0,
       pipelineConfig: [publishFriendFunc],
     });
@@ -173,23 +176,18 @@ export class FriendServiceStack extends Construct {
       api: props.api,
       typeName: 'Subscription',
       fieldName: 'onPublishFriend',
-          code: appsync.Code.fromInline(`
-              export function request(ctx) {
-                console.log(ctx);
-                return {};
-              }
-    
-              export function response(ctx) {
-                return ctx.prev.result;
-              }
-          `),
+      code: appsync.Code.fromInline(`
+          export function request(ctx) {
+            console.log(ctx);
+            return {};
+          }
+
+          export function response(ctx) {
+            return ctx.prev.result;
+          }
+      `),
       runtime: appsync.FunctionRuntime.JS_1_0_0,
       pipelineConfig: [onPublishFriendFunc],
     });
-    // noneDS.createResolver('SubscriptionOnFriendResolver', {
-    //   typeName: 'Subscription',
-    //   fieldName: 'onPublishFriend',
-    //   code: appsync.Code.fromAsset('resource/resolvers/Subscription.onPublishFriend.js'),
-    // })
   }
 }

@@ -31,12 +31,19 @@ enum Status {
   FRIENDS
 }
 
+enum RequestType {
+  ADD
+  REMOVE
+  APPROVE
+  DISAPPROVE
+}
+
 type Query {
   getFriend(friendId: String!): String!
 }
 
 type Mutation {
-  addFriend(friendId: String!): String!
+  requestFriend(friendId: String!, type: RequestType!): String!
   publishFriend(input: FriendInput!): FriendRequest @aws_iam
 }
 
@@ -47,7 +54,7 @@ type Subscription {
 input FriendInput {
 	UserId: String!
 	FriendId: String!
-	Status: Status!
+	Status: Status
 }
 
 type FriendRequest @aws_iam{

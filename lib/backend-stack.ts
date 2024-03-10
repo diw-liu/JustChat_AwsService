@@ -4,6 +4,7 @@ import { AppsyncStack } from './chatAppSync'
 import { CongitoStack } from './chatCongito'
 import { DynamoStack } from './chatDynamo'
 import { FriendServiceStack } from './chatFriendService';
+import { MessageServiceStack } from './chatMessageService';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class BackendStack extends cdk.Stack {
@@ -29,6 +30,13 @@ export class BackendStack extends cdk.Stack {
       api: chatAppSync.api,
       friendsTable: chatDynamo.friendsTable,
       usersTable: chatDynamo.usersTable,
+    });
+
+    const chatMessageService = new MessageServiceStack(this, 'ChatMessageService', {
+      region: region,
+      account: account,
+      api: chatAppSync.api,
+      messagesTable: chatDynamo.messagesTable
     });
 
     new cdk.CfnOutput(this, 'ChatAppSyncOutput', {

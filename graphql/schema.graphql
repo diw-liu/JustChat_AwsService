@@ -1,28 +1,24 @@
-type User @aws_iam{
+type User @aws_iam @aws_cognito_user_pools{
   UserId: String!
   UserName: String!
   Email: String!
 }
 
-type Room {
-  roomId: ID!
-  messageId: ID!
-  sender: String!
-  status: Status!
-}
-
-type Message {
-  messageId: ID!
-  messageContent: String!
-}
+# type Room {
+#   roomId: ID!
+#   messageId: ID!
+#   sender: String!
+#   status: Status!
+# }
 
 type Friend {
-  UserId: String!
+  UserId: String
   FriendId: String!
-  Status: Status!
+  Status: Status
   RoomId: String!
   CreatedTime: AWSDateTime
   UpdatedTime: AWSDateTime
+  FriendInfo: User!
 }
 
 enum Status {
@@ -39,15 +35,18 @@ enum RequestType {
 }
 
 type Query {
-  getFriend(friendId: String!): String!
+  getFriends: [Friend]
 }
 
 type Mutation {
+  sendMessage(RoomId: String!, Message: String!): String!
   requestFriend(friendId: String!, type: RequestType!): String!
+  publishMessage(input: MessageInput!): Message @aws_iam
   publishFriend(input: FriendInput!): FriendRequest @aws_iam
 }
 
 type Subscription {
+  onPublishMessage(RoomId: String!): Message @aws_subscribe(mutations: ["publishMessage"])
   onPublishFriend(UserId: String!): FriendRequest @aws_subscribe(mutations: ["publishFriend"])
 }
 
@@ -63,3 +62,25 @@ type FriendRequest @aws_iam{
 	Status: Status
 	FriendInfo: User
 }
+
+input MessageInput {
+  RoomId: String!
+  MessageId: String
+  AuthorId: String
+  Content: String!
+  CreatedTime: String
+}
+
+type Message @aws_iam{
+  RoomId: String
+  MessageId: String
+  AuthorId: String
+  Content: String
+  CreatedTime: String
+}
+
+type MessageConnection {
+  items: [Message]
+  nextToken: String
+}
+

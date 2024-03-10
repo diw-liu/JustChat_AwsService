@@ -4,6 +4,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'
 export class DynamoStack extends Construct {
   public readonly usersTable: dynamodb.Table
   public readonly friendsTable: dynamodb.Table
+  public readonly messagesTable: dynamodb.Table
   constructor(scope: Construct, id: string, props?: any){
     super(scope, id);
 
@@ -36,5 +37,16 @@ export class DynamoStack extends Construct {
       stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
     })
 
+    this.messagesTable = new dynamodb.Table(this, 'MessageTable', {
+      partitionKey: {
+        name: "RoomId",
+        type: dynamodb.AttributeType.STRING
+      },
+      sortKey: {
+        name: "MessageId",
+        type: dynamodb.AttributeType.STRING
+      },
+      stream: dynamodb.StreamViewType.NEW_IMAGE
+    })
   }
 }

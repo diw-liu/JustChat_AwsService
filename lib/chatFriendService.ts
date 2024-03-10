@@ -1,6 +1,5 @@
 import { Construct } from 'constructs';
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as appsync from 'aws-cdk-lib/aws-appsync';
 import * as eventsources from 'aws-cdk-lib/aws-lambda-event-sources';
 
@@ -134,60 +133,65 @@ export class FriendServiceStack extends Construct {
       })
     );
 
+    const friendsDS = props.api.addDynamoDbDataSource("friendDataSource", props.friendsTable)
+
+    new appsync.Resolver(this, 'resolver-query-getFriends', {
+      api: props.api,
+      dataSource: friendsDS,
+      typeName: 'Query',
+      fieldName: 'getFriends',
+      code: appsync.Code.fromAsset("resource/resolvers/Query.getFriends.js"),
+      runtime: appsync.FunctionRuntime.JS_1_0_0
+    });
+
+
     const usersDS = props.api.addDynamoDbDataSource("usersDataSource", props.usersTable)
 
-    const publishFriendFunc = new appsync.AppsyncFunction(this, 'FuncPublishFriend', {
-      name: 'publishFriendFunc',
-      api:props.api,
-      dataSource: usersDS,
-      code: appsync.Code.fromAsset("resource/resolvers/Mutation.publishFriend.js"),
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-    });
+    // const publishFriendFunc = new appsync.AppsyncFunction(this, 'FuncPublishFriend', {
+    //   name: 'publishFriendFunc',
+    //   api:props.api,
+    //   dataSource: usersDS,
+    //   code: appsync.Code.fromAsset("resource/resolvers/Mutation.publishFriend.js"),
+    //   runtime: appsync.FunctionRuntime.JS_1_0_0,
+    // });
     
-    new appsync.Resolver(this, 'pipeline-resolver-mutation-publishFriend', {
+
+    new appsync.Resolver(this, 'resolver-mutation-publishFriend', {
       api: props.api,
+      dataSource: usersDS,
       typeName: 'Mutation',
       fieldName: 'publishFriend',
-      code: appsync.Code.fromInline(`
-          export function request(ctx) {
-            console.log(ctx);
-            return {};
-          }
+      code: appsync.Code.fromAsset("resource/resolvers/Mutation.publishFriend.js"),
+      runtime: appsync.FunctionRuntime.JS_1_0_0
+    });
 
-          export function response(ctx) {
-            return ctx.prev.result;
-          }
-      `),
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-      pipelineConfig: [publishFriendFunc],
+    new appsync.Resolver(this, 'resolver-friend-friendInfo', {
+      api: props.api,
+      dataSource: usersDS,
+      typeName: 'Friend',
+      fieldName: 'FriendInfo',
+      code: appsync.Code.fromAsset("resource/resolvers/Friend.FriendInfo.js"),
+      runtime: appsync.FunctionRuntime.JS_1_0_0
     });
 
     const noneDS = props.api.addNoneDataSource("NoneDataSource")
 
-    const onPublishFriendFunc = new appsync.AppsyncFunction(this, 'FuncOnPublishFriend', {
-      name: 'onPublishFriendFunc',
-      api:props.api,
-      dataSource: noneDS,
-      code: appsync.Code.fromAsset("resource/resolvers/Subscription.onPublishFriend.js"),
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-    });
+    // const onPublishFriendFunc = new appsync.AppsyncFunction(this, 'FuncOnPublishFriend', {
+    //   name: 'onPublishFriendFunc',
+    //   api:props.api,
+    //   dataSource: noneDS,
+    //   code: appsync.Code.fromAsset("resource/resolvers/Subscription.onPublishFriend.js"),
+    //   runtime: appsync.FunctionRuntime.JS_1_0_0,
+    // });
     
-    new appsync.Resolver(this, 'pipeline-resolver-subscription-onPublishFriend', {
+
+    new appsync.Resolver(this, 'resolver-subscription-onPublishFriend', {
       api: props.api,
+      dataSource: noneDS,
       typeName: 'Subscription',
       fieldName: 'onPublishFriend',
-      code: appsync.Code.fromInline(`
-          export function request(ctx) {
-            console.log(ctx);
-            return {};
-          }
-
-          export function response(ctx) {
-            return ctx.prev.result;
-          }
-      `),
+      code: appsync.Code.fromAsset("resource/resolvers/Subscription.onPublishFriend.js"),
       runtime: appsync.FunctionRuntime.JS_1_0_0,
-      pipelineConfig: [onPublishFriendFunc],
     });
   }
 }

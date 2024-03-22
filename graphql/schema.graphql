@@ -34,20 +34,32 @@ enum RequestType {
   DISAPPROVE
 }
 
+enum PresenceStatus @aws_iam{
+  online
+  offline
+}
+
 type Query {
   getFriends: [Friend]
+  heartbeat: Presence
+  status(id: ID!): Presence
 }
 
 type Mutation {
+  connect: Presence
+  disconnect: Presence
+  disconnected(id: ID!): Presence @aws_iam
   sendMessage(RoomId: String!, Message: String!): String!
   requestFriend(friendId: String!, type: RequestType!): String!
   publishMessage(input: MessageInput!): Message @aws_iam
   publishFriend(input: FriendInput!): FriendRequest @aws_iam
+  # publishStatus(input: PresenceInput!): Presence @aws_iam
 }
 
 type Subscription {
   onPublishMessage(RoomId: String!): Message @aws_subscribe(mutations: ["publishMessage"])
   onPublishFriend(UserId: String!): FriendRequest @aws_subscribe(mutations: ["publishFriend"])
+  onStatus(id: ID!): Presence @aws_subscribe(mutations: ["connect","disconnect","disconnected"])
 }
 
 input FriendInput {
@@ -84,3 +96,12 @@ type MessageConnection {
   nextToken: String
 }
 
+input PresenceInput {
+  id: ID!
+  status: PresenceStatus!
+}
+
+type Presence @aws_iam{
+  id: ID! @aws_iam
+  status: PresenceStatus!
+}

@@ -7,62 +7,6 @@ export class FriendServiceStack extends Construct {
   constructor(scope: Construct, id: string, props?: any) {
     super(scope, id);
 
-    // const friendDLQ = new sqs.Queue(this, 'FriendsDLQ')
-    // const friendSQS = new sqs.Queue(this, 'FriendsQueue', {
-    //   deadLetterQueue: {
-    //     maxReceiveCount: 1,
-    //     queue: friendDLQ
-    //   }
-    // })
-
-    //requestFriend.addEventSource(new eventsources.SqsEventSource(friendSQS));
-
-    // const datasource = props.api.addHttpDataSource(
-		// 	'sqs',
-		// 	`https://sqs.${props.region}.amazonaws.com`,
-		// 	{
-		// 		authorizationConfig: {
-		// 			signingRegion: props.region,
-		// 			signingServiceName: 'sqs',
-		// 		},
-		// 	}
-		// )
-		// datasource.node.addDependency(friendSQS)
-		// friendSQS.grantSendMessages(datasource.grantPrincipal)
-
-    // const sendSQSFunction = new appsync.AppsyncFunction(this, 'function', {
-		// 	name: 'sendSQSFunction',
-    //   api: props.api,
-		// 	dataSource: datasource,
-		// 	code: appsync.Code.fromAsset("resource/resolvers/sendFriendSQS.js"),
-		// 	runtime: appsync.FunctionRuntime.JS_1_0_0,
-		// })
-
-		// const pipelineVars = JSON.stringify({
-		// 	accountId: props.account,
-		// 	queueUrl: friendSQS.queueUrl,
-		// 	queueName: friendSQS.queueName,
-		// })
-
-		// new appsync.Resolver(this, 'PipelineResolver', {
-		// 	api: props.api,
-		// 	typeName: 'Query',
-		// 	fieldName: 'getFriend',
-		// 	code: appsync.Code.fromInline(`
-    //         // The before step
-    //         export function request(...args) {
-    //           console.log(args);
-    //           return ctx
-    //         }
-        
-    //         // The after step
-    //         export function response(ctx) {
-    //           return ctx.prev.result
-    //         }
-    //       `),
-		// 	runtime: appsync.FunctionRuntime.JS_1_0_0
-		// })
-
     const appsyncLayer = new lambda.LayerVersion(this, 'AppSyncLayer', {
       code: lambda.Code.fromAsset('resource/utils/layer-package.zip'),
     });
@@ -144,17 +88,7 @@ export class FriendServiceStack extends Construct {
       runtime: appsync.FunctionRuntime.JS_1_0_0
     });
 
-
     const usersDS = props.api.addDynamoDbDataSource("usersDataSource", props.usersTable)
-
-    // const publishFriendFunc = new appsync.AppsyncFunction(this, 'FuncPublishFriend', {
-    //   name: 'publishFriendFunc',
-    //   api:props.api,
-    //   dataSource: usersDS,
-    //   code: appsync.Code.fromAsset("resource/resolvers/Mutation.publishFriend.js"),
-    //   runtime: appsync.FunctionRuntime.JS_1_0_0,
-    // });
-    
 
     new appsync.Resolver(this, 'resolver-mutation-publishFriend', {
       api: props.api,
@@ -175,15 +109,6 @@ export class FriendServiceStack extends Construct {
     });
 
     const noneDS = props.api.addNoneDataSource("NoneDataSource")
-
-    // const onPublishFriendFunc = new appsync.AppsyncFunction(this, 'FuncOnPublishFriend', {
-    //   name: 'onPublishFriendFunc',
-    //   api:props.api,
-    //   dataSource: noneDS,
-    //   code: appsync.Code.fromAsset("resource/resolvers/Subscription.onPublishFriend.js"),
-    //   runtime: appsync.FunctionRuntime.JS_1_0_0,
-    // });
-    
 
     new appsync.Resolver(this, 'resolver-subscription-onPublishFriend', {
       api: props.api,

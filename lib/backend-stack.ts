@@ -25,20 +25,20 @@ export class BackendStack extends cdk.Stack {
       userpool: chatUserpool.userpool
     });
 
-    const chatFriendService = new FriendServiceStack(this, 'ChatFriendService', {
+    new FriendServiceStack(this, 'ChatFriendService', {
       api: chatAppSync.api,
       friendsTable: chatDynamo.friendsTable,
       usersTable: chatDynamo.usersTable,
     });
 
-    const chatMessageService = new MessageServiceStack(this, 'ChatMessageService', {
+    new MessageServiceStack(this, 'ChatMessageService', {
       region: region,
       account: account,
       api: chatAppSync.api,
       messagesTable: chatDynamo.messagesTable
     });
 
-    const chatPresentService = new PresentServiceStack(this, 'ChatPresentService', {
+    new PresentServiceStack(this, 'ChatPresentService', {
       api: chatAppSync.api,
     })
 

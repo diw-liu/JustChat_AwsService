@@ -31,10 +31,6 @@ export class PresentServiceStack extends Construct {
       ]
     });
 
-    const flowLog = new ec2.FlowLog(this, 'VpcFlowLog', {
-      resourceType: ec2.FlowLogResourceType.fromVpc(vpc)
-    })
-
     const lambdaSecurityGroup = new ec2.SecurityGroup(this, 'LambdaSG', {
       vpc: vpc,
       description: 'SecurityGroup into which Lambdas will be deployed'
@@ -47,20 +43,6 @@ export class PresentServiceStack extends Construct {
 
     ecSecurityGroup.connections.allowFrom(lambdaSecurityGroup, ec2.Port.tcp(6379), 'Redis ingress 6379');
     ecSecurityGroup.connections.allowTo(lambdaSecurityGroup, ec2.Port.tcp(6379), 'Redis egress 6379');
-
-    // const producerRole = new iam.Role(this, 'ProducerRole', {
-    //   assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-    //   description: 'Role to be assumed by producer lambda',
-    // });
-
-    // producerRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole"));
-    // producerRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaVPCAccessExecutionRole"));
-
-    // let isolatedSubnets: string[] = []
-
-    // vpc.isolatedSubnets.forEach(function(value){
-    //   isolatedSubnets.push(value.subnetId)
-    // });
 
     const ecSubnetGroup = new redis.CfnSubnetGroup(this, 'RedisSubnetGroup', {
       subnetIds: vpc.selectSubnets({ subnetGroupName: "Redis"}).subnetIds,
@@ -203,6 +185,7 @@ export class PresentServiceStack extends Construct {
         APPSYNC_URL: props.api.graphqlUrl
       }
     })
+
     // EventBus
     const presenceBus = new events.EventBus(this, 'PresentEventBus', {
       eventBusName: 'present-event-bus'
@@ -226,62 +209,19 @@ export class PresentServiceStack extends Construct {
       enabled: true
     });
 
-    // const eventsEndPointSG = new ec2.SecurityGroup(this, "eventsEndPointSG", {
-    //   vpc: vpc,
-    //   description: "EventBrige interface endpoint SG"
-    // });
-
-    // const eventEndpoint = vpc.addInterfaceEndpoint("eventsEndPoint", {
-    //   service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_EVENTS,
-    //   subnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
-    //   securityGroups: [eventsEndPointSG]
-    // });
-
-    // eventEndpoint.connections.allowDefaultPortFromAnyIpv4();
-
     presenceBus.grantPutEventsTo(timeout);
+    presenceBus.grantPutEventsTo(disconnect);
 
     timeout.addEnvironment("TIMEOUT", "10000")
       .addEnvironment("EVENT_BUS", presenceBus.eventBusArn)
 
     disconnect.addEnvironment("EVENT_BUS", presenceBus.eventBusArn)
-    
+
     const allowAppsync = new iam.PolicyStatement({ effect: iam.Effect.ALLOW });
     allowAppsync.addActions("appsync:GraphQL");
     allowAppsync.addResources(props.api.arn + "/*");
     on_disconnect
       .addEnvironment("GRAPHQL_ENDPOINT", props.api.graphqlUrl)
       .addToRolePolicy(allowAppsync);
-
-
-
-
-
-
-
-
-
-      
-
-    //expireRule.addTarget(new events_targets.LambdaFunction())
-    // const noneDS = props.api.addNoneDataSource("PresentNoneDataSource")
-
-    // new appsync.Resolver(this, 'resolver-mutation-publishStatus', {
-    //   api: props.api,
-    //   dataSource: noneDS,
-    //   typeName: 'Mutation',
-    //   fieldName: 'publishStatus',
-    //   code: appsync.Code.fromAsset("resource/resolvers/Mutation.publishStatus.js"),
-    //   runtime: appsync.FunctionRuntime.JS_1_0_0,
-    // });
-
-    // new appsync.Resolver(this, 'resolver-subscription-onPublishStatus', {
-    //   api: props.api,
-    //   dataSource: noneDS,
-    //   typeName: 'Subscription',
-    //   fieldName: 'onPublishStatus',
-    //   code: appsync.Code.fromAsset("resource/resolvers/Subscription.onPublishStatus.js"),
-    //   runtime: appsync.FunctionRuntime.JS_1_0_0,
-    // });
   }
 }

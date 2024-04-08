@@ -8,12 +8,9 @@ export const handler = async (event) => {
   for (const message of event.Records) {
     await processMessageAsync(message);
   }
-  console.info("done");
 };
 
 async function processMessageAsync(message) {
-  console.log(message);
-  console.log(message['dynamodb'])
   const eventName = message['eventName'];
   const item = eventName != "REMOVE" ? message['dynamodb']['NewImage'] : message['dynamodb']['OldImage'];
   
@@ -29,10 +26,9 @@ async function processMessageAsync(message) {
             Status: "PENDING",
           }
         };
-        return await appsyncRequest.handler(variables)
+        return await appsyncRequest.middleware(variables)
       }
       break;
-      
     case 'REMOVE':
       const res = await deleteFriendItem(item)
       if(res['$metadata']['httpStatusCode'] != 200) throw new Error('Fail DeleteFriendItem')
@@ -42,9 +38,7 @@ async function processMessageAsync(message) {
           FriendId: item['UserId']['S']
         }
       };
-      console.log(variables);
-      return await appsyncRequest.handler(variables);
-      
+      return await appsyncRequest.middleware(variables);
     case 'MODIFY':
       if(item['Status']['S'] == 'FRIENDS' && message['dynamodb']['OldImage']['Status']['S'] == 'PENDING') {
         const res = await updateFriendItem(item)
@@ -56,8 +50,7 @@ async function processMessageAsync(message) {
             Status: "FRIENDS",
           }
         };
-        console.log(variables);
-        return await appsyncRequest.handler(variables);
+        return await appsyncRequest.middleware(variables, item['RoomId']['S']);
       }
       break;
     default:

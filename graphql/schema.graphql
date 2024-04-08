@@ -1,58 +1,12 @@
-type User @aws_iam @aws_cognito_user_pools{
-  UserId: String!
-  UserName: String!
-  Email: String!
-}
-
-type Friend {
-  UserId: String
-  FriendId: String!
-  Status: Status
-  RoomId: String!
-  CreatedTime: AWSDateTime
-  UpdatedTime: AWSDateTime
-  FriendInfo: User!
-}
-
-enum Status {
-  REQUESTED
-  PENDING
-  FRIENDS
-}
-
-enum RequestType {
-  ADD
-  REMOVE
-  APPROVE
-  DISAPPROVE
-}
-
-enum PresenceStatus {
-  online
-  offline
-}
-
-type Query {
-  getFriends: [Friend]
-  heartbeat: Presence
-  status(id: ID!): Presence
-}
-
-type Mutation {
-  connect: Presence
-  disconnect: Presence
-  disconnected(id: ID!): Presence @aws_iam
-  sendMessage(RoomId: String!, Message: String!): String!
-  requestFriend(friendId: String!, type: RequestType!): String!
-  publishMessage(input: MessageInput!): Message @aws_iam
-  publishFriend(input: FriendInput!): FriendRequest @aws_iam
-  # publishStatus(input: PresenceInput!): Presence @aws_iam
-}
-
-type Subscription {
-  onPublishMessage(RoomId: String!): Message @aws_subscribe(mutations: ["publishMessage"])
-  onPublishFriend(UserId: String!): FriendRequest @aws_subscribe(mutations: ["publishFriend"])
-  onStatus(id: ID!): Presence @aws_subscribe(mutations: ["connect","disconnect","disconnected"])
+type Friend @aws_cognito_user_pools {
+	UserId: String
+	FriendId: String!
+	Status: Status
+	RoomId: String!
+	CreatedTime: AWSDateTime
+	UpdatedTime: AWSDateTime
+	FriendInfo: User!
+	Messages(limit: Int, nextToken: String): MessageConnection
 }
 
 input FriendInput {
@@ -61,40 +15,92 @@ input FriendInput {
 	Status: Status
 }
 
-type FriendRequest @aws_iam{
+type FriendRequest @aws_iam @aws_cognito_user_pools {
 	UserId: String
 	FriendId: String
 	Status: Status
 	FriendInfo: User
 }
 
-input MessageInput {
-  RoomId: String!
-  MessageId: String
-  AuthorId: String
-  Content: String!
-  CreatedTime: String
+type FriendResponse {
+	Friend: Friend
+	Status: String!
 }
 
-type Message @aws_iam{
-  RoomId: String
-  MessageId: String
-  AuthorId: String
-  Content: String
-  CreatedTime: String
+type Message @aws_iam @aws_cognito_user_pools {
+	RoomId: String
+	MessageId: String
+	AuthorId: String
+	Content: String
+	CreatedTime: String
 }
 
 type MessageConnection {
-  items: [Message]
-  nextToken: String
+	items: [Message]
+	nextToken: String
+}
+
+input MessageInput {
+	RoomId: String!
+	MessageId: String
+	AuthorId: String
+	Content: String!
+	CreatedTime: String
+}
+
+type Presence @aws_iam @aws_cognito_user_pools {
+	id: ID!
+	status: PresenceStatus!
 }
 
 input PresenceInput {
-  id: ID!
-  status: PresenceStatus!
+	id: ID!
+	status: PresenceStatus!
 }
 
-type Presence @aws_iam @aws_cognito_user_pools{
-  id: ID!
-  status: PresenceStatus!
+enum PresenceStatus {
+	online
+	offline
+}
+
+enum RequestType {
+	ADD
+	REMOVE
+	APPROVE
+	DISAPPROVE
+}
+
+enum Status {
+	REQUESTED
+	PENDING
+	FRIENDS
+}
+
+type User @aws_iam @aws_cognito_user_pools {
+	UserId: String
+	UserName: String!
+	Email: String!
+}
+
+type Mutation {
+	connect: Presence
+	disconnect: Presence
+	disconnected(id: ID!): Presence	@aws_iam
+	sendMessage(RoomId: String!, Message: String!): String! @aws_iam @aws_cognito_user_pools
+	requestFriend(friendId: String!, type: RequestType!): FriendResponse! 
+	publishMessage(input: MessageInput!): Message @aws_iam
+	publishFriend(input: FriendInput!): FriendRequest	@aws_iam
+}
+
+type Query {
+	getUser(email: String!): User	@aws_cognito_user_pools
+	getFriends: [Friend]
+	heartbeat: Presence
+	status(id: ID!): Presence
+}
+
+type Subscription @aws_cognito_user_pools {
+	onPublishMessage(RoomId: String!): Message	@aws_subscribe(mutations: ["publishMessage"])
+	onPublishFriend(UserId: String!): FriendRequest @aws_subscribe(mutations: ["publishFriend"])
+	onStatus(id: ID!): Presence @aws_subscribe(mutations: ["connect","disconnect","disconnected"])
 }

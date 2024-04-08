@@ -24,7 +24,7 @@ export const processMessageAsync = async (message) => {
         "S": uuidv4()
       },
       "AuthorId": {
-        "S": info['id']
+        "S": info['id'] ?? "0"
       },
       "Content": {
         "S": info['input']['Message']

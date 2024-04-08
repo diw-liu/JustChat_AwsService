@@ -22,12 +22,15 @@ export const handler = async (event) => {
         break;
     }
   } catch (err) {
-    console.error("An error occurred");
-    throw err;
+    console.error("An error occurred"+ err);
+    return {
+      Status: '400'  
+    }
   }
 }
 
 async function insertItem(event) {
+  if (event["identity"]["sub"] == event["arguments"]["friendId"]) throw new Error('Cant add yoursefl as friend') 
   const date = new Date();
   const input = {
     "Item": {
@@ -48,11 +51,14 @@ async function insertItem(event) {
       }
     },
     "ReturnConsumedCapacity": "TOTAL",
-    "TableName": process.env.FRIEND_TABLE_NAME
+    "TableName": process.env.FRIEND_TABLE_NAME,
+    "ConditionExpression": "attribute_not_exists(UserId)"
   };
   const command = new PutItemCommand(input);
   const response = await client.send(command);
-  return response['$metadata']['httpStatusCode']
+  return {
+    Status: response['$metadata']['httpStatusCode']
+  }
 }
 
 async function deleteItem(event) {
@@ -80,7 +86,9 @@ async function deleteItem(event) {
   console.log(input)
   const command = new DeleteItemCommand(input);
   const response = await client.send(command);
-  return response['$metadata']['httpStatusCode']
+  return {
+    Status: response['$metadata']['httpStatusCode']
+  }
 }
 
 async function updateItem(event) {
@@ -120,5 +128,13 @@ async function updateItem(event) {
   };
   const command = new UpdateItemCommand(input);
   const response = await client.send(command);
-  return response['$metadata']['httpStatusCode']
+  console.log(response)
+  return {
+    Friend: {
+      FriendId: response['Attributes']['FriendId']['S'],
+      RoomId: response['Attributes']['RoomId']['S'],
+      Status: response['Attributes']['Status']['S'],
+    },
+    Status: response['$metadata']['httpStatusCode']
+  }
 }

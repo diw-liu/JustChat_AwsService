@@ -29,6 +29,7 @@ export class BackendStack extends cdk.Stack {
       api: chatAppSync.api,
       friendsTable: chatDynamo.friendsTable,
       usersTable: chatDynamo.usersTable,
+      messagesTable: chatDynamo.messagesTable
     });
 
     new MessageServiceStack(this, 'ChatMessageService', {
@@ -38,18 +39,21 @@ export class BackendStack extends cdk.Stack {
       messagesTable: chatDynamo.messagesTable
     });
 
-    new PresentServiceStack(this, 'ChatPresentService', {
-      api: chatAppSync.api,
+    // new PresentServiceStack(this, 'ChatPresentService', {
+    //   api: chatAppSync.api,
+    // })
+
+    new cdk.CfnOutput(this, 'ChatsUserpool', {
+      value: chatUserpool.userpool.userPoolId
+    });
+    
+    new cdk.CfnOutput(this, 'ChatsClient', {
+      value: chatUserpool.client.userPoolClientId
     })
 
-    new cdk.CfnOutput(this, 'ChatAppSyncOutput', {
+    new cdk.CfnOutput(this, "ChatsAppSync", {
       value: chatAppSync.api.graphqlUrl
-    })
-    // The code that defines your stack goes here
+    });
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'BackendQueue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
   }
 }

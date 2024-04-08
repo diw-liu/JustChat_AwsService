@@ -42,6 +42,7 @@ export class FriendServiceStack extends Construct {
     })
     props.friendsTable.grantReadWriteData(friendsEvent);
     props.api.grant(friendsEvent, appsync.IamResource.ofType('Mutation', 'publishFriend'), 'appsync:GraphQL');
+    props.api.grant(friendsEvent, appsync.IamResource.ofType('Mutation', 'sendMessage'), 'appsync:GraphQL');
 
     const streamEventSourceProps: eventsources.StreamEventSourceProps = {
       startingPosition: lambda.StartingPosition.LATEST,
@@ -108,7 +109,16 @@ export class FriendServiceStack extends Construct {
       runtime: appsync.FunctionRuntime.JS_1_0_0
     });
 
-    const noneDS = props.api.addNoneDataSource("NoneDataSource")
+    new appsync.Resolver(this, 'resolver-query-getUser', {
+      api: props.api,
+      dataSource: usersDS,
+      typeName: 'Query',
+      fieldName: 'getUser',
+      code: appsync.Code.fromAsset("resource/resolvers/Query.getUser.js"),
+      runtime: appsync.FunctionRuntime.JS_1_0_0
+    })
+
+    const noneDS = props.api.addNoneDataSource("friendsNoneDataSource")
 
     new appsync.Resolver(this, 'resolver-subscription-onPublishFriend', {
       api: props.api,

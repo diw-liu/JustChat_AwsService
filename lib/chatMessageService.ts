@@ -49,7 +49,7 @@ export class MessageServiceStack extends Construct {
       name: 'messageSQSFunction',
       api: props.api,
       dataSource: datasource,
-      code: appsync.Code.fromAsset("resource/resolvers/sendFriendSQS.js"),
+      code: appsync.Code.fromAsset("resource/resolvers/messageSQS.js"),
       runtime: appsync.FunctionRuntime.JS_1_0_0
     })
 
@@ -106,7 +106,18 @@ export class MessageServiceStack extends Construct {
       })
     );
 
-    const noneDS = props.api.addNoneDataSource("MessageNoneDataSource")
+    const messageDS = props.api.addDynamoDbDataSource("messageDataSource", props.messagesTable);
+
+    new appsync.Resolver(this, 'resolver-friend-messages', {
+      api: props.api,
+      dataSource: messageDS,
+      typeName: 'Friend',
+      fieldName: 'Messages',
+      code: appsync.Code.fromAsset("resource/resolvers/Friend.Messages.js"),
+      runtime: appsync.FunctionRuntime.JS_1_0_0
+    })
+
+    const noneDS = props.api.addNoneDataSource("messageNoneDataSource")
   
     new appsync.Resolver(this, 'resolver-mutation-publishMessage', {
       api: props.api,

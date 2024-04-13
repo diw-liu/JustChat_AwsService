@@ -7,8 +7,6 @@ const client = new DynamoDBClient();
 
 export const handler = async (event) => {
   try {
-    console.log(event)
-    const arg = event['arguments']
     switch (event['arguments']["type"]) {
       case 'ADD':
         return insertItem(event)

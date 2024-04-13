@@ -9,7 +9,7 @@ const GRAPHQL_ENDPOINT = process.env.APPSYNC_URL;
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 const query = `
-  mutation publishMessage($input: FriendInput!) {
+  mutation publishMessage($input: MessageInput!) {
     publishMessage(input: $input) {
       RoomId
       MessageId

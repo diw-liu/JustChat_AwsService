@@ -117,6 +117,15 @@ export class MessageServiceStack extends Construct {
       runtime: appsync.FunctionRuntime.JS_1_0_0
     })
 
+    new appsync.Resolver(this, 'resolver-query-getMessage', {
+      api: props.api,
+      dataSource: messageDS,
+      typeName: 'Query',
+      fieldName: 'getMessage',
+      code: appsync.Code.fromAsset("resource/resolvers/Friend.Messages.js"),
+      runtime: appsync.FunctionRuntime.JS_1_0_0
+    }) 
+
     const noneDS = props.api.addNoneDataSource("messageNoneDataSource")
   
     new appsync.Resolver(this, 'resolver-mutation-publishMessage', {

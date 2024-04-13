@@ -1,12 +1,12 @@
-type Friend @aws_cognito_user_pools {
+type Friend @aws_iam @aws_cognito_user_pools {
 	UserId: String
 	FriendId: String!
 	Status: Status
-	RoomId: String!
+	RoomId: String
 	CreatedTime: AWSDateTime
 	UpdatedTime: AWSDateTime
 	FriendInfo: User!
-	Messages(limit: Int, nextToken: String): MessageConnection
+	Messages: MessageConnection
 }
 
 input FriendInput {
@@ -93,14 +93,15 @@ type Mutation {
 }
 
 type Query {
-	getUser(email: String!): User	@aws_cognito_user_pools
+	getUser(email: String!): [User]	@aws_cognito_user_pools
 	getFriends: [Friend]
+  getMessage(roomId: String!, limit: Int, nextToken: String): MessageConnection
 	heartbeat: Presence
 	status(id: ID!): Presence
 }
 
 type Subscription @aws_cognito_user_pools {
-	onPublishMessage(RoomId: String!): Message	@aws_subscribe(mutations: ["publishMessage"])
+	onPublishMessage(RoomId: [String!]): Message @aws_subscribe(mutations: ["publishMessage"])
 	onPublishFriend(UserId: String!): FriendRequest @aws_subscribe(mutations: ["publishFriend"])
 	onStatus(id: ID!): Presence @aws_subscribe(mutations: ["connect","disconnect","disconnected"])
 }

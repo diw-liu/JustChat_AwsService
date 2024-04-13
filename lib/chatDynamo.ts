@@ -48,5 +48,15 @@ export class DynamoStack extends Construct {
       },
       stream: dynamodb.StreamViewType.NEW_IMAGE
     })
+
+    const createdTimeSecondIndexProps : dynamodb.LocalSecondaryIndexProps = {
+      indexName: "timeIndex",
+      sortKey: {
+        name: "CreatedTime",
+        type: dynamodb.AttributeType.STRING
+      }
+    }
+
+    this.messagesTable.addLocalSecondaryIndex(createdTimeSecondIndexProps);
   }
 }

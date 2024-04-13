@@ -58,6 +58,11 @@ export class CongitoStack extends Construct {
       }
     })
 
-    this.client = this.userpool.addClient('BudgetApps');
+    this.client = this.userpool.addClient('JustChatApp', {
+      authFlows: {
+        userPassword: true,
+        userSrp: true
+      }
+    });
   }
 }

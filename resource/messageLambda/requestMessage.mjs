@@ -21,7 +21,7 @@ export const processMessageAsync = async (message) => {
         "S": info['input']['RoomId']
       },
       "MessageId": {
-        "S": uuidv4()
+        "S": message['messageId']
       },
       "AuthorId": {
         "S": info['id'] ?? "0"

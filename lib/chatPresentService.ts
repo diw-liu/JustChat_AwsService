@@ -11,217 +11,233 @@ export class PresentServiceStack extends Construct {
   constructor(scope: Construct, id: string, props?: any) {
     super(scope, id);
 
-    // const vpc = new ec2.Vpc(this, "Vpc", {
-    //   subnetConfiguration: [
-    //     {
-    //       cidrMask: 24,
-    //       name: 'Redis',
-    //       subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-    //     },
-    //     {
-    //       cidrMask: 24,
-    //       name: 'Lambda',
-    //       subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-    //     },
-    //     {
-    //       cidrMask: 24,
-    //       name: 'Public',
-    //       subnetType: ec2.SubnetType.PUBLIC,
-    //     },
-    //   ]
-    // });
+    const vpc = new ec2.Vpc(this, "Vpc", {
+      subnetConfiguration: [
+        {
+          cidrMask: 24,
+          name: 'Redis',
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+        },
+        {
+          cidrMask: 24,
+          name: 'Lambda',
+          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+        },
+        {
+          cidrMask: 24,
+          name: 'Public',
+          subnetType: ec2.SubnetType.PUBLIC,
+        },
+      ]
+    });
 
-    // const lambdaSecurityGroup = new ec2.SecurityGroup(this, 'LambdaSG', {
-    //   vpc: vpc,
-    //   description: 'SecurityGroup into which Lambdas will be deployed'
-    // });
+    const lambdaSecurityGroup = new ec2.SecurityGroup(this, 'LambdaSG', {
+      vpc: vpc,
+      description: 'SecurityGroup into which Lambdas will be deployed'
+    });
 
-    // const ecSecurityGroup = new ec2.SecurityGroup(this, 'ElastiCacheSG', {
-    //   vpc: vpc,
-    //   description: 'SecurityGroup associated with the ElastiCache Redis Cluster'
-    // });
+    const ecSecurityGroup = new ec2.SecurityGroup(this, 'ElastiCacheSG', {
+      vpc: vpc,
+      description: 'SecurityGroup associated with the ElastiCache Redis Cluster'
+    });
 
-    // ecSecurityGroup.connections.allowFrom(lambdaSecurityGroup, ec2.Port.tcp(6379), 'Redis ingress 6379');
-    // ecSecurityGroup.connections.allowTo(lambdaSecurityGroup, ec2.Port.tcp(6379), 'Redis egress 6379');
+    ecSecurityGroup.connections.allowFrom(lambdaSecurityGroup, ec2.Port.tcp(6379), 'Redis ingress 6379');
+    ecSecurityGroup.connections.allowTo(lambdaSecurityGroup, ec2.Port.tcp(6379), 'Redis egress 6379');
 
-    // const ecSubnetGroup = new redis.CfnSubnetGroup(this, 'RedisSubnetGroup', {
-    //   subnetIds: vpc.selectSubnets({ subnetGroupName: "Redis"}).subnetIds,
-    //   description: "Subnet group for redis"
-    // });
+    const ecSubnetGroup = new redis.CfnSubnetGroup(this, 'RedisSubnetGroup', {
+      subnetIds: vpc.selectSubnets({ subnetGroupName: "Redis"}).subnetIds,
+      description: "Subnet group for redis"
+    });
 
-    // const ecCacheCluster = new redis.CfnReplicationGroup(this, 'RedisElasticCache', {
-    //   replicationGroupDescription: "PresenceReplicationGroup",
-    //   cacheNodeType: "cache.t3.small",
-    //   engine: 'redis',
-    //   numCacheClusters: 3,
-    //   autoMinorVersionUpgrade: true,
-    //   multiAzEnabled: true,
-    //   cacheSubnetGroupName: ecSubnetGroup.ref,
-    //   securityGroupIds: [ecSecurityGroup.securityGroupId],
-    //   port: 6379
-    // })
+    const ecCacheCluster = new redis.CfnReplicationGroup(this, 'RedisElasticCache', {
+      replicationGroupDescription: "PresenceReplicationGroup",
+      cacheNodeType: "cache.t3.small",
+      engine: 'redis',
+      numCacheClusters: 3,
+      autoMinorVersionUpgrade: true,
+      multiAzEnabled: true,
+      cacheSubnetGroupName: ecSubnetGroup.ref,
+      securityGroupIds: [ecSecurityGroup.securityGroupId],
+      port: 6379
+    })
     
-    // // Lambda Functions
-    // const appsyncLayer = new lambda.LayerVersion(this, 'AppSyncLayer', {
-    //   code: lambda.Code.fromAsset('resource/utils/redis-package.zip'),
-    // });
+    // Lambda Functions
+    const appsyncLayer = new lambda.LayerVersion(this, 'AppSyncLayer', {
+      code: lambda.Code.fromAsset('resource/utils/redis-package.zip'),
+    });
 
-    // const status = new lambda.Function(this, 'StatusLambda', {
-    //   runtime: lambda.Runtime.NODEJS_18_X,
-    //   handler: "status.handler",
-    //   code : lambda.Code.fromAsset("resource/presenceLambda"),
-    //   layers: [appsyncLayer],
-    //   vpc: vpc,
-    //   vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
-    //   securityGroups: [lambdaSecurityGroup],
-    //   environment: {
-    //     redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
-    //     redis_port: ecCacheCluster.attrPrimaryEndPointPort
-    //   }
-    // })
+    const status = new lambda.Function(this, 'StatusLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "status.handler",
+      code : lambda.Code.fromAsset("resource/presenceLambda"),
+      layers: [appsyncLayer],
+      vpc: vpc,
+      vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
+      securityGroups: [lambdaSecurityGroup],
+      environment: {
+        redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
+        redis_port: ecCacheCluster.attrPrimaryEndPointPort
+      }
+    })
 
-    // const statusLambdaDS = props.api.addLambdaDataSource('statusLambdaDataSource', status)
+    const statusLambdaDS = props.api.addLambdaDataSource('statusLambdaDataSource', status)
 
-    // statusLambdaDS.createResolver('resolver-query-status', {
-    //   typeName: 'Query',
-    //   fieldName: 'status',
-    // })
+    statusLambdaDS.createResolver('resolver-query-status', {
+      typeName: 'Query',
+      fieldName: 'status',
+    })
 
-    // const heartbeat = new lambda.Function(this, 'HeartbeatLambda', {
-    //   runtime: lambda.Runtime.NODEJS_18_X,
-    //   handler: "heartbeat.handler",
-    //   code : lambda.Code.fromAsset("resource/presenceLambda"),
-    //   layers: [appsyncLayer],
-    //   vpc: vpc,
-    //   vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
-    //   securityGroups: [lambdaSecurityGroup],
-    //   environment: {
-    //     redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
-    //     redis_port: ecCacheCluster.attrPrimaryEndPointPort
-    //   }
-    // })
+    statusLambdaDS.createResolver('resolver-friend-isOnline', {
+      typeName: 'Friend',
+      fieldName: 'isOnline'
+    })
 
-    // const heartbeatLambdaDS = props.api.addLambdaDataSource('heartbeatLambdaDataSource', heartbeat)
+    const heartbeat = new lambda.Function(this, 'HeartbeatLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "heartbeat.handler",
+      code : lambda.Code.fromAsset("resource/presenceLambda"),
+      layers: [appsyncLayer],
+      vpc: vpc,
+      vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
+      securityGroups: [lambdaSecurityGroup],
+      environment: {
+        redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
+        redis_port: ecCacheCluster.attrPrimaryEndPointPort
+      }
+    })
 
-    // heartbeatLambdaDS.createResolver('resolver-query-heartbeat', {
-    //   typeName: 'Query',
-    //   fieldName: 'heartbeat',
-    // })
+    const heartbeatLambdaDS = props.api.addLambdaDataSource('heartbeatLambdaDataSource', heartbeat)
 
-    // heartbeatLambdaDS.createResolver('resolver-mutation-connect', {
-    //   typeName: 'Mutation',
-    //   fieldName: 'connect',
-    // })
+    heartbeatLambdaDS.createResolver('resolver-query-heartbeat', {
+      typeName: 'Query',
+      fieldName: 'heartbeat',
+    })
 
-    // const disconnect = new lambda.Function(this, 'DisconnectLambda', {
-    //   runtime: lambda.Runtime.NODEJS_18_X,
-    //   handler: "disconnect.handler",
-    //   code : lambda.Code.fromAsset("resource/presenceLambda"),
-    //   layers: [appsyncLayer],
-    //   vpc: vpc,
-    //   vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
-    //   securityGroups: [lambdaSecurityGroup],
-    //   environment: {
-    //     redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
-    //     redis_port: ecCacheCluster.attrPrimaryEndPointPort
-    //   }
-    // })
+    heartbeatLambdaDS.createResolver('resolver-mutation-connect', {
+      typeName: 'Mutation',
+      fieldName: 'connect',
+    })
 
-    // const disconnectLambdaDS = props.api.addLambdaDataSource('disconnectLambdaDataSource', disconnect)
+    const disconnect = new lambda.Function(this, 'DisconnectLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "disconnect.handler",
+      code : lambda.Code.fromAsset("resource/presenceLambda"),
+      layers: [appsyncLayer],
+      vpc: vpc,
+      vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
+      securityGroups: [lambdaSecurityGroup],
+      environment: {
+        redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
+        redis_port: ecCacheCluster.attrPrimaryEndPointPort
+      }
+    })
 
-    // disconnectLambdaDS.createResolver('resolver-mutation-disconnect', {
-    //   typeName: 'Mutation',
-    //   fieldName: 'disconnect',
-    // })
+    const disconnectLambdaDS = props.api.addLambdaDataSource('disconnectLambdaDataSource', disconnect)
 
-    // const noneDS = props.api.addNoneDataSource("disconnectedDS");
-    // const requestMappingTemplate = appsync.MappingTemplate.fromString(`
-    //   {
-    //     "version": "2017-02-28",
-    //     "payload": {
-    //       "id": "$context.arguments.id",
-    //       "status": "offline"
-    //     }        
-    //   }
-    // `);
-    // const responseMappingTemplate = appsync.MappingTemplate.fromString(`
-    //   $util.toJson($context.result)
-    // `);
+    disconnectLambdaDS.createResolver('resolver-mutation-disconnect', {
+      typeName: 'Mutation',
+      fieldName: 'disconnect',
+    })
 
-    // new appsync.Resolver(this, 'resolver-mutation-disconnected', {
-    //   api: props.api,
-    //   dataSource: noneDS,
-    //   typeName: 'Mutation',
-    //   fieldName: 'disconnected',
-    //   requestMappingTemplate,
-    //   responseMappingTemplate
-    // });
+    const noneDS = props.api.addNoneDataSource("disconnectedDS");
+    const requestMappingTemplate = appsync.MappingTemplate.fromString(`
+      {
+        "version": "2017-02-28",
+        "payload": {
+          "id": "$context.arguments.id",
+          "status": "offline"
+        }        
+      }
+    `);
+    const responseMappingTemplate = appsync.MappingTemplate.fromString(`
+      $util.toJson($context.result)
+    `);
 
-    // const timeout = new lambda.Function(this, 'TimeoutLambda', {
-    //   runtime: lambda.Runtime.NODEJS_18_X,
-    //   handler: "timeout.handler",
-    //   code : lambda.Code.fromAsset("resource/presenceLambda"),
-    //   layers: [appsyncLayer],
-    //   vpc: vpc,
-    //   vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
-    //   securityGroups: [lambdaSecurityGroup],
-    //   environment: {
-    //     redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
-    //     redis_port: ecCacheCluster.attrPrimaryEndPointPort
-    //   }
-    // })
+    new appsync.Resolver(this, 'resolver-mutation-disconnected', {
+      api: props.api,
+      dataSource: noneDS,
+      typeName: 'Mutation',
+      fieldName: 'disconnected',
+      requestMappingTemplate,
+      responseMappingTemplate
+    });
 
-    // const on_disconnect = new lambda.Function(this, 'On_disconnectLambda', {
-    //   runtime: lambda.Runtime.NODEJS_18_X,
-    //   handler: "on_disconnect.handler",
-    //   code : lambda.Code.fromAsset("resource/presenceLambda"),
-    //   layers: [appsyncLayer],
-    //   vpc: vpc,
-    //   vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
-    //   securityGroups: [lambdaSecurityGroup],
-    //   environment: {
-    //     redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
-    //     redis_port: ecCacheCluster.attrPrimaryEndPointPort,
-    //     APPSYNC_URL: props.api.graphqlUrl
-    //   }
-    // })
+    const timeout = new lambda.Function(this, 'TimeoutLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "timeout.handler",
+      code : lambda.Code.fromAsset("resource/presenceLambda"),
+      layers: [appsyncLayer],
+      vpc: vpc,
+      vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
+      securityGroups: [lambdaSecurityGroup],
+      environment: {
+        redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
+        redis_port: ecCacheCluster.attrPrimaryEndPointPort
+      }
+    })
 
-    // // EventBus
-    // const presenceBus = new events.EventBus(this, 'PresentEventBus', {
-    //   eventBusName: 'present-event-bus'
-    // });
+    const on_disconnect = new lambda.Function(this, 'On_disconnectLambda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "on_disconnect.handler",
+      code : lambda.Code.fromAsset("resource/presenceLambda"),
+      layers: [appsyncLayer],
+      vpc: vpc,
+      vpcSubnets: vpc.selectSubnets({subnetGroupName: "Lambda"}),
+      securityGroups: [lambdaSecurityGroup],
+      environment: {
+        redis_endpoint: ecCacheCluster.attrPrimaryEndPointAddress,
+        redis_port: ecCacheCluster.attrPrimaryEndPointPort,
+        APPSYNC_URL: props.api.graphqlUrl
+      }
+    })
+
+    // EventBus
+    const presenceBus = new events.EventBus(this, 'PresentEventBus', {
+      eventBusName: 'present-event-bus'
+    });
 
 
-    // // new events.Rule(this, "PresenceTimeoutRule", {
-    // //   schedule: events.Schedule.cron({day:"*"}),
-    // //   targets: [new events_targets.LambdaFunction(timeout)],
-    // //   enabled: true
-    // // });
+    new events.Rule(this, "PresenceTimeoutRule", {
+      schedule: events.Schedule.cron({hour:"*"}),
+      targets: [new events_targets.LambdaFunction(timeout)],
+      enabled: true
+    });
 
-    // new events.Rule(this, "PresenceDisconnectRule", {
-    //   eventBus: presenceBus,
-    //   description: "Rule for presence disconnection",
-    //   eventPattern: {
-    //     detailType: ["presence.disconnected"],
-    //     source: ["api.presence"]
-    //   },
-    //   targets: [new events_targets.LambdaFunction(on_disconnect)],
-    //   enabled: true
-    // });
+    new events.Rule(this, "PresenceDisconnectRule", {
+      eventBus: presenceBus,
+      description: "Rule for presence disconnection",
+      eventPattern: {
+        detailType: ["presence.disconnected"],
+        source: ["api.presence"]
+      },
+      targets: [new events_targets.LambdaFunction(on_disconnect)],
+      enabled: true
+    });
 
-    // presenceBus.grantPutEventsTo(timeout);
-    // presenceBus.grantPutEventsTo(disconnect);
+    presenceBus.grantPutEventsTo(timeout);
+    presenceBus.grantPutEventsTo(disconnect);
 
-    // timeout.addEnvironment("TIMEOUT", "10000")
-    //   .addEnvironment("EVENT_BUS", presenceBus.eventBusArn)
+    timeout.addEnvironment("TIMEOUT", "10000")
+      .addEnvironment("EVENT_BUS", presenceBus.eventBusArn)
 
-    // disconnect.addEnvironment("EVENT_BUS", presenceBus.eventBusArn)
+    disconnect.addEnvironment("EVENT_BUS", presenceBus.eventBusArn)
 
-    // const allowAppsync = new iam.PolicyStatement({ effect: iam.Effect.ALLOW });
-    // allowAppsync.addActions("appsync:GraphQL");
-    // allowAppsync.addResources(props.api.arn + "/*");
-    // on_disconnect
-    //   .addEnvironment("GRAPHQL_ENDPOINT", props.api.graphqlUrl)
-    //   .addToRolePolicy(allowAppsync);
+    const allowAppsync = new iam.PolicyStatement({ effect: iam.Effect.ALLOW });
+    allowAppsync.addActions("appsync:GraphQL");
+    allowAppsync.addResources(props.api.arn + "/*");
+    on_disconnect
+      .addEnvironment("GRAPHQL_ENDPOINT", props.api.graphqlUrl)
+      .addToRolePolicy(allowAppsync);
+
+    const presentNoneDS = props.api.addNoneDataSource("presentNoneDataSource")
+    new appsync.Resolver(this, 'resolver-subscription-onPublishStatus', {
+      api: props.api,
+      dataSource: presentNoneDS,
+      typeName: 'Subscription',
+      fieldName: 'onPublishStatus',
+      code: appsync.Code.fromAsset("resource/resolvers/Subscription.onPublishStatus.js"),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
   }
 }

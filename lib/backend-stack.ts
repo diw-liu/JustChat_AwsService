@@ -39,9 +39,9 @@ export class BackendStack extends cdk.Stack {
       messagesTable: chatDynamo.messagesTable
     });
 
-    // new PresentServiceStack(this, 'ChatPresentService', {
-    //   api: chatAppSync.api,
-    // })
+    new PresentServiceStack(this, 'ChatPresentService', {
+      api: chatAppSync.api,
+    })
 
     new cdk.CfnOutput(this, 'ChatsUserpool', {
       value: chatUserpool.userpool.userPoolId

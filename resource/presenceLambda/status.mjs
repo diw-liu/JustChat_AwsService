@@ -10,10 +10,14 @@ const redisClient = createClient({
 await redisClient.connect();
 
 export const handler = async (event) => {
-  const id = event && event.arguments && event.arguments.id;
+  let id = event && event.arguments && event.arguments.id;
+  if(!id) id = event && event.source && event.source.FriendId
+  console.log(event)
   if (undefined === id || null === id) throw new Error("Missing argument 'id'");
   try {
-    const result = await redisClient.zscore("presence", id);
+    console.log(id)
+    const result = await redisClient.zScore("presence", id);
+    console.log(result)
     return { id, status: result ? "online" : "offline" };
   } catch (error) {
     return error;
